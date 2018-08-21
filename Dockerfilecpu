@@ -39,7 +39,7 @@ RUN pip3 install --upgrade pip
 RUN pip3 install numpy
 
 WORKDIR /
-ENV OPENCV_VERSION="3.2.0"
+ENV OPENCV_VERSION="3.3.0"
 RUN wget https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
 && unzip ${OPENCV_VERSION}.zip
 
@@ -48,13 +48,13 @@ RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
 && cmake -DBUILD_TIFF=ON \
   -DBUILD_opencv_java=OFF \
   -DWITH_CUDA=OFF \
-  -DENABLE_AVX=OFF \
-  -DWITH_OPENGL=OFF \
-  -DWITH_OPENCL=OFF \
-  -DWITH_IPP=OFF \
-  -DWITH_TBB=OFF \
-  -DWITH_EIGEN=OFF \
-  -DWITH_V4L=OFF \
+  -DENABLE_AVX=ON \
+  -DWITH_OPENGL=ON \
+  -DWITH_OPENCL=ON \
+  -DWITH_IPP=ON \
+  -DWITH_TBB=ON \
+  -DWITH_EIGEN=ON \
+  -DWITH_V4L=ON \
   -DBUILD_TESTS=OFF \
   -DBUILD_PERF_TESTS=OFF \
   -DCMAKE_BUILD_TYPE=RELEASE \
@@ -95,7 +95,15 @@ RUN make -j8
 
 RUN make py
 
-# RUN  make test -j8
+RUN  make test -j8
 
 ENV PATH $CAFFE_ROOT/build/tools:$PYCAFFE_ROOT:$PATH
 RUN echo "$CAFFE_ROOT/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig
+
+RUN apt-get update -y && apt-get install -y libsm6 libxext6
+
+RUN pip3 install --upgrade pip setuptools
+
+ADD requirements.txt /usr/src/requirements.txt
+
+RUN pip3 install -r /usr/src/requirements.txt
