@@ -87,25 +87,25 @@ RUN cd python && for req in $(cat requirements.txt) pydot; do pip3 install $req;
 
 RUN apt-get install -y liblapack-dev liblapack3 libopenblas-base libopenblas-dev
 
-# RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial.so.10.1.0 /usr/lib/x86_64-linux-gnu/libhdf5.so
+RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial.so.10.1.0 /usr/lib/x86_64-linux-gnu/libhdf5.so
 
-# RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-linux-gnu/libhdf5_hl.so
+RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-linux-gnu/libhdf5_hl.so
 
-# RUN ln -s /usr/lib/x86_64-linux-gnu/libboost_python-py35.so /usr/lib/x86_64-linux-gnu/libboost_python3.so
+RUN ln -s /usr/lib/x86_64-linux-gnu/libboost_python-py35.so /usr/lib/x86_64-linux-gnu/libboost_python3.so
 
-# RUN make -j8
+RUN make -j16
 
-# RUN make py
+RUN make py
 
-# # RUN  make test -j8
+RUN make test -j16
 
-# ENV PATH $CAFFE_ROOT/build/tools:$PYCAFFE_ROOT:$PATH
-# RUN echo "$CAFFE_ROOT/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig
+ENV PATH $CAFFE_ROOT/build/tools:$PYCAFFE_ROOT:$PATH
+RUN echo "$CAFFE_ROOT/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig
 
-# RUN apt-get update -y && apt-get install -y libsm6 libxext6
+RUN apt-get update -y && apt-get install -y libsm6 libxext6
 
-# RUN pip3 install --upgrade pip setuptools
+RUN pip3 install --upgrade pip setuptools
 
-# ADD requirements.txt /usr/src/requirements.txt
+ADD requirements.txt /usr/src/requirements.txt
 
-# RUN pip3 install -r /usr/src/requirements.txt
+RUN pip3 install -r /usr/src/requirements.txt
