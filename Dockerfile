@@ -1,4 +1,4 @@
-FROM nvidia/cuda:9.2-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -49,7 +49,7 @@ RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
 && cd /opencv-${OPENCV_VERSION}/cmake_binary \
 && cmake -DBUILD_TIFF=ON \
   -DBUILD_opencv_java=OFF \
-  -DWITH_CUDA=ON \
+  -DWITH_CUDA=OFF \
   -DENABLE_AVX=ON \
   -DWITH_OPENGL=OFF \
   -DWITH_OPENCL=OFF \
@@ -64,6 +64,7 @@ RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
   -DPYTHON_EXECUTABLE=$(which python3) \
   -DPYTHON_INCLUDE_DIR=$(python3 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
   -DPYTHON_PACKAGES_PATH=$(python3 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") .. \
+&& make -j8 \
 && make install \
 && rm /${OPENCV_VERSION}.zip \
 && rm -r /opencv-${OPENCV_VERSION}
@@ -93,11 +94,11 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-
 
 RUN ln -s /usr/lib/x86_64-linux-gnu/libboost_python-py35.so /usr/lib/x86_64-linux-gnu/libboost_python3.so
 
-RUN make -j16
+RUN make -j8
 
 RUN make py
 
-RUN make test -j16
+RUN make test -j8
 
 ENV PATH $CAFFE_ROOT/build/tools:$PYCAFFE_ROOT:$PATH
 RUN echo "$CAFFE_ROOT/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig
@@ -109,3 +110,5 @@ RUN pip3 install --upgrade pip setuptools
 ADD requirements.txt /usr/src/requirements.txt
 
 RUN pip3 install -r /usr/src/requirements.txt
+
+RUN RUN apt-get update -y && apt-get install -y swig

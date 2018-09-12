@@ -1,4 +1,4 @@
-FROM nvidia/cuda:9.2-cudnn7-runtime-centos7
+FROM nvidia/cuda:9.2-cudnn7-devel-centos7
 
 RUN yum install -y  \
         build-essential \
@@ -8,28 +8,13 @@ RUN yum install -y  \
         unzip \
         yasm \
         pkg-config \
-        libswscale-devel \
-        libtbb2 \
+        vim \
         libtbb-devel \
         libjpeg-devel \
         libpng-devel \
         libtiff-devel \
-        libjasper-devel \
         libavformat-devel \
-        libpq-devel \
-        libatlas-base-devel \
-        libboost-all-devel \
-        libgflags-devel \
-        libgoogle-glog-devel \
-        libhdf5-serial-devel \
-        libleveldb-devel \
-        liblmdb-devel \
-        libopencv-devel \
-        libprotobuf-devel \
-        libsnappy-devel \
-        protobuf-compiler \
-        vim
-
+        libpq-devel
 
 RUN yum install -y iputils telnet
 
@@ -61,53 +46,17 @@ RUN pip3 install numpy
 
 RUN rm -f /usr/src/Python-3.6.6.tgz
 
-WORKDIR /
-ENV OPENCV_VERSION="3.4.2"
-RUN wget https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
-&& unzip ${OPENCV_VERSION}.zip
-
 RUN yum groupinstall "Development Tools" -y \
     && yum install cmake gcc gtk2-devel numpy pkconfig -y
 
-
-# RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
-#     && cd /opencv-${OPENCV_VERSION}/cmake_binary \
-#     && cmake -D CMAKE_BUILD_TYPE=DEBUG -D CMAKE_INSTALL_PREFIX=/usr/local .. \
-#     && make \
-#     && make install
-
-# RUN export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/ \
-#     && echo '/usr/local/lib/' >> /etc/ld.so.conf.d/opencv.conf \
-#     && ldconfig
-
-RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
-&& cd /opencv-${OPENCV_VERSION}/cmake_binary \
-&& cmake -DBUILD_TIFF=ON \
-  -DBUILD_opencv_java=OFF \
-  -DWITH_CUDA=ON \
-  -DENABLE_AVX=ON \
-  -DWITH_OPENGL=OFF \
-  -DWITH_OPENCL=OFF \
-  -DWITH_IPP=OFF \
-  -DWITH_TBB=OFF \
-  -DWITH_EIGEN=OFF \
-  -DWITH_V4L=OFF \
-  -DBUILD_TESTS=OFF \
-  -DBUILD_PERF_TESTS=OFF \
-  -DCMAKE_BUILD_TYPE=RELEASE \
-  -DCMAKE_INSTALL_PREFIX=$(python3.6 -c "import sys; print(sys.prefix)") \
-  -DPYTHON_EXECUTABLE=$(which python3.6) \
-  -DPYTHON_INCLUDE_DIR=$(python3.6 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
-  -DPYTHON_PACKAGES_PATH=$(python3.6 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") .. \
-&& make install \
-&& rm /${OPENCV_VERSION}.zip \
-&& rm -r /opencv-${OPENCV_VERSION}
-
-RUN yum install –y epel-release
+RUN yum -y install epel-release && yum clean all
 
 RUN yum-config-manager --enable epel
+
 # install dependency of caffe
 RUN yum install -y protobuf-devel leveldb-devel snappy-devel opencv-devel boost-devel hdf5-devel atlas-devel
+
+RUN yum install -y openblas-devel
 
 # glog
 RUN wget https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/google-glog/glog-0.3.3.tar.gz \
@@ -127,9 +76,34 @@ RUN git clone https://github.com/LMDB/lmdb \
     && cd lmdb/libraries/liblmdb \
     && make && make install
 
-ENV CAFFE_ROOT=/opt/caffe
+WORKDIR /
+ENV OPENCV_VERSION="3.3.0"
+RUN wget https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip \
+&& unzip ${OPENCV_VERSION}.zip
 
-ADD Makefile.config /opt
+RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
+&& cd /opencv-${OPENCV_VERSION}/cmake_binary \
+&& cmake -DBUILD_TIFF=ON \
+  -DBUILD_opencv_java=OFF \
+  -DWITH_CUDA=OFF \
+  -DWITH_OPENGL=OFF \
+  -DWITH_OPENCL=OFF \
+  -DWITH_IPP=OFF \
+  -DWITH_TBB=OFF \
+  -DWITH_EIGEN=OFF \
+  -DWITH_V4L=OFF \
+  -DBUILD_TESTS=OFF \
+  -DBUILD_PERF_TESTS=OFF \
+  -DCMAKE_BUILD_TYPE=RELEASE \
+  -DCMAKE_INSTALL_PREFIX=$(python3.6 -c "import sys; print(sys.prefix)") \
+  -DPYTHON_EXECUTABLE=$(which python3.6) \
+  -DPYTHON_INCLUDE_DIR=$(python3.6 -c "from distutils.sysconfig import get_python_inc; print(get_python_inc())") \
+  -DPYTHON_PACKAGES_PATH=$(python3.6 -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())") .. \
+&& make install \
+&& rm /${OPENCV_VERSION}.zip \
+&& rm -r /opencv-${OPENCV_VERSION}
+
+ENV CAFFE_ROOT=/opt/caffe
 
 WORKDIR $CAFFE_ROOT
 
@@ -140,21 +114,27 @@ RUN git clone https://github.com/weiliu89/caffe.git .
 
 RUN git checkout ssd
 
-RUN cp /opt/Makefile.config /opt/caffe/Makefile.config
+ADD Makefile.centos.config /opt/caffe/Makefile.config
 
 RUN cd python && for req in $(cat requirements.txt) pydot; do pip3 install $req; done && cd ..
 
-RUN yum install -y libopenblas-devel
+# install boost linked to python3
+RUN curl -o boost_1_68_0.tar.bz2 -L 'https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.bz2' && tar jxf boost_1_68_0.tar.bz2 
 
-# RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial.so.10.1.0 /usr/lib/x86_64-linux-gnu/libhdf5.so
+RUN yum install -y python36-devel python36-numpy
 
-# RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-linux-gnu/libhdf5_hl.so
+RUN ln -s /usr/local/include/python3.6m /usr/local/include/python3.6
 
-# RUN ln -s /usr/lib/x86_64-linux-gnu/libboost_python-py36.so /usr/lib/x86_64-linux-gnu/libboost_python3.so
+RUN cd boost_1_68_0 && \
+    ./bootstrap.sh --with-python=python3.6 && \
+    ./b2 install --prefix=/usr/local && \
+    ldconfig
 
-# RUN make -j8
+RUN ln -s /usr/local/lib/libboost_python36.so /usr/local/lib/libboost_python3.so
 
-# RUN make py
+RUN make -j8
+
+RUN make py
 
 # # RUN  make test -j8
 

@@ -1,0 +1,69 @@
+FROM nvidia/cuda:9.2-cudnn7-devel-centos7
+
+RUN yum -y update && yum clean all
+# python3 deps
+RUN yum -y groupinstall 'Development Tools'
+RUN yum -y install bzip2-devel db4-devel gdbm-devel libpcap-devel ncurses-devel openssl-devel readline-devel sqlite-devel xz-devel zlib-devel
+# jupyter deps
+RUN yum -y install epel-release
+RUN yum -y install blas-devel freetype-devel gcc gcc-c++ gcc-fortran git hdf5-devel lapack-devel libjpeg-turbo-devel libpng-devel make opencv-devel patch readline-devel zeromq-devel
+COPY jupyter-requirements.txt /tmp/
+# caffe deps
+RUN yum -y install epel-release
+RUN yum -y install freetype-devel gflags-devel git glog-devel hdf5-devel leveldb-devel libjpeg-turbo-devel libpng-devel lmdb-devel openblas-devel opencv-devel snappy-devel
+
+# install python 3.5.1
+RUN curl https://www.python.org/ftp/python/3.5.1/Python-3.5.1.tar.xz | tar Jx && \
+    pushd Python-3.5.1 && ./configure --prefix=/usr --enable-shared --with-ensurepip=install && \
+    make && make install && ldconfig && \
+    popd && rm -rf Python-3.5.1
+
+# install tini
+RUN curl -L https://github.com/krallin/tini/releases/download/v0.6.0/tini > tini && \
+    echo "d5ed732199c36a1189320e6c4859f0169e950692f451c03e7854243b95f4234b *tini" | sha256sum -c - && \
+    mv tini /usr/local/bin/tini && \
+    chmod +x /usr/local/bin/tini
+
+# install boost linked to python3
+RUN curl -o boost_1_60_0.tar.bz2 -L 'http://downloads.sourceforge.net/project/boost/boost/1.60.0/boost_1_60_0.tar.bz2' && \
+    echo "686affff989ac2488f79a97b9479efb9f2abae035b5ed4d8226de6857933fd3b boost_1_60_0.tar.bz2" | sha256sum -c - && \
+    tar jxf boost_1_60_0.tar.bz2 && \
+    pushd boost_1_60_0 && \
+    ./bootstrap.sh --with-python=python3 && \
+    perl -pi -e 's!(\Qincludes ?= $(prefix)/include/python$(version)\E)!\1m!' tools/build/src/tools/python.jam && \
+    ./b2 install --prefix=/usr && \
+    ldconfig && \
+    popd && rm -rf boost_1_60_0 boost_1_60_0.tar.bz2
+
+# install recent protobuf
+RUN curl -o protobuf-2.6.1.tar.bz2 -L https://github.com/google/protobuf/releases/download/v2.6.1/protobuf-2.6.1.tar.bz2 && \
+    echo "ee445612d544d885ae240ffbcbf9267faa9f593b7b101f21d58beceb92661910 protobuf-2.6.1.tar.bz2" | sha256sum -c - && \
+    tar xjf protobuf-2.6.1.tar.bz2 && \
+    pushd protobuf-2.6.1/ && \
+    ./configure --prefix=/usr && make && make install && \
+    ldconfig && \
+    popd && rm -rf protobuf-2.6.1 protobuf-2.6.1.tar.bz2
+
+# install jupyter deps
+RUN pip3 install -r /tmp/jupyter-requirements.txt
+
+# install caffe
+COPY caffe.patch /
+COPY Makefile.config /
+COPY caffe-ld-so.conf /etc/ld.so.conf.d/
+RUN git clone https://github.com/BVLC/caffe.git && \
+    pushd caffe && \
+    patch -i /caffe.patch && \
+    cp /Makefile.config . && \
+    make all pycaffe distribute && \
+    mkdir -p /opt && mv distribute /opt/caffe && \
+    git rev-parse HEAD > /opt/caffe/git-rev && \
+    ldconfig && \
+    popd && rm -rf caffe
+
+COPY caffe.pth /usr/lib/python3.5/site-packages/caffe.pth
+RUN pip3 install scikit-image && pip3 install --pre protobuf
+
+RUN mkdir -p -m 755 /etc/jupyter/ && echo "c.NotebookApp.ip = '*'" >> /etc/jupyter/jupyter_notebook_config.py
+
+RUN yum clean all
