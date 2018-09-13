@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         vim &&\
     rm -rf /var/lib/apt/lists/*
 
-# Install all dependencies for OpenCV 3.2
+
 RUN apt-get -y update && apt-get -y install libssl-dev libffi-dev python3-dev python3-pip gfortran libgtk2.0-dev libavcodec-dev libavformat-dev libv4l-dev
 
 RUN pip3 install --upgrade pip
@@ -71,7 +71,7 @@ RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
 
 ENV CAFFE_ROOT=/opt/caffe
 
-ADD Makefile.config /opt
+RUN git clone https://github.com/NVIDIA/nccl.git && cd nccl && make -j install && cd .. && rm -rf nccl
 
 WORKDIR $CAFFE_ROOT
 
@@ -82,7 +82,7 @@ RUN git clone https://github.com/weiliu89/caffe.git .
 
 RUN git checkout ssd
 
-RUN cp /opt/Makefile.config /opt/caffe/Makefile.config
+ADD Makefile.config /opt/caffe/Makefile.config
 
 RUN cd python && for req in $(cat requirements.txt) pydot; do pip3 install $req; done && cd ..
 
@@ -111,4 +111,4 @@ ADD requirements.txt /usr/src/requirements.txt
 
 RUN pip3 install -r /usr/src/requirements.txt
 
-RUN RUN apt-get update -y && apt-get install -y swig
+RUN apt-get update -y && apt-get install -y swig
