@@ -27,16 +27,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libopencv-dev \
         libprotobuf-dev \
         libsnappy-dev \
+        libssl-dev \
+        libffi-dev \
+        python3-dev \
+        python3-pip \
+        libgtk2.0-dev \
+        gfortran \
+        libavcodec-dev \
+        libv4l-dev \
         protobuf-compiler \
         iputils-ping \ 
         telnet \
         vim &&\
     rm -rf /var/lib/apt/lists/*
 
-
-RUN apt-get -y update && apt-get -y install libssl-dev libffi-dev python3-dev python3-pip gfortran libgtk2.0-dev libavcodec-dev libavformat-dev libv4l-dev
-
-RUN pip3 install --upgrade pip
+RUN pip3 install --upgrade setuptools pip 
 
 RUN pip3 install numpy
 
@@ -71,44 +76,34 @@ RUN mkdir /opencv-${OPENCV_VERSION}/cmake_binary \
 
 ENV CAFFE_ROOT=/opt/caffe
 
-RUN git clone https://github.com/NVIDIA/nccl.git && cd nccl && make -j install && cd .. && rm -rf nccl
+# RUN git clone https://github.com/NVIDIA/nccl.git \
+#     && cd nccl \
+#     && make -j install \
+#     && cd .. \
+#     && rm -rf nccl
 
 WORKDIR $CAFFE_ROOT
 
 ENV PYCAFFE_ROOT $CAFFE_ROOT/python
+
 ENV PYTHONPATH $PYCAFFE_ROOT:$PYTHONPATH
 
-RUN git clone https://github.com/weiliu89/caffe.git .
-
-RUN git checkout ssd
+RUN git clone https://github.com/weiliu89/caffe.git . && git checkout ssd
 
 ADD Makefile.config /opt/caffe/Makefile.config
 
 RUN cd python && for req in $(cat requirements.txt) pydot; do pip3 install $req; done && cd ..
 
-RUN apt-get install -y liblapack-dev liblapack3 libopenblas-base libopenblas-dev
-
-RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial.so.10.1.0 /usr/lib/x86_64-linux-gnu/libhdf5.so
-
-RUN ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-linux-gnu/libhdf5_hl.so
-
-RUN ln -s /usr/lib/x86_64-linux-gnu/libboost_python-py35.so /usr/lib/x86_64-linux-gnu/libboost_python3.so
-
-RUN make -j8
-
-RUN make py
-
-RUN make test -j8
+RUN apt-get update && apt-get install -y liblapack-dev liblapack3 libopenblas-base libopenblas-dev libsm6 libxext6 swig libigraph0-dev \
+    && ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial.so.10.1.0 /usr/lib/x86_64-linux-gnu/libhdf5.so \
+    && ln -s /usr/lib/x86_64-linux-gnu/libhdf5_serial_hl.so.10.0.2 /usr/lib/x86_64-linux-gnu/libhdf5_hl.so \
+    && ln -s /usr/lib/x86_64-linux-gnu/libboost_python-py35.so /usr/lib/x86_64-linux-gnu/libboost_python3.so \
+    && make -j8 && make py && make test -j8
 
 ENV PATH $CAFFE_ROOT/build/tools:$PYCAFFE_ROOT:$PATH
+
 RUN echo "$CAFFE_ROOT/build/lib" >> /etc/ld.so.conf.d/caffe.conf && ldconfig
-
-RUN apt-get update -y && apt-get install -y libsm6 libxext6
-
-RUN pip3 install --upgrade pip setuptools
 
 ADD requirements.txt /usr/src/requirements.txt
 
 RUN pip3 install -r /usr/src/requirements.txt
-
-RUN apt-get update -y && apt-get install -y swig
